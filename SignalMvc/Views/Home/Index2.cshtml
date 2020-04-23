@@ -1,0 +1,89 @@
+﻿@{
+    ViewBag.Title = "signalR";
+    Layout = null;
+}
+<h2>Hubs集线器类Demo2</h2>
+<h2>用户ID：<label id="userid"></label>状态：<label id="rstart"></label></h2>
+<div>
+    当前在线人数：<label id="users"></label>
+    <select id="userslist"></select>
+    <input type="text" id="message" />
+    <input type="button" id="sendmessage" value="发送" />
+    <input type="button" id="sendallmessage" value="发送全部" />
+    <input type="button" id="stopsignalr" value="断开连接" />
+    <input type="button" id="startsignalr" value="重新连接" />
+    <label id="messageBox"></label>
+</div>
+<script src="~/Scripts/jquery-1.10.2.js"></script>
+<script src="~/Scripts/jquery.signalR-2.2.3.min.js"></script>
+<script src="~/signalr/hubs"></script>
+<script>
+    $(function () {
+        console.log("a")
+        //引用自动生成的集线器代理
+        var chat = $.connection.serverHub;
+
+        //注册显示当前用户连接状态的方法
+        chat.client.status = function (status) {
+            $("#rstart").text('');
+            if (status != "") {
+                $("#userid").text(status);
+                $("#rstart").text('在线');
+            } else {
+                $("#rstart").text('未连接成功！');
+            }
+        }
+
+        //注册显示所有用户列表的方法
+        chat.client.getusers = function (data) {
+            var selectlist = "";
+            if (data) {
+                var json = $.parseJSON(data);                    
+                $("#users").text('');
+                $("#users").append(json.length);
+                for (var i = 0; i < json.length; i++) {
+                    selectlist += "<option value=" + json[i].ConnectionID + ">" + json[i].ConnectionID + "</option>";
+                }
+                $("#userslist").html("");
+                $("#userslist").append(selectlist);
+            }
+        }
+
+        //定义服务器调用的客户端sendMessage来显示新消息
+        chat.client.SendMessage = function (name, message) {
+            //向页面添加消息
+            $("#messageBox").append('<li><strong style="color:green">' + name + '</strong>:' + message + '</li>');
+        }
+        $.connection.hub.connectionSlow(function () {
+            console.log("连接出问题了！");
+        });
+
+        // 开始连接服务器
+        var hubid = "";
+
+        $.connection.hub.start().done(function () {
+            //获取客户端ID
+            hubid = $.connection.hub.id;
+
+            $('#sendmessage').on('click', function () {
+                //调用服务器端集线器的Send方法
+                chat.server.SendOne($('#message').val(), $("#userslist").val());
+                //清空输入框信息并获取焦点
+                $("#message").val('').focus();
+            });
+
+            $('#sendallmessage').on('click', function () {
+                //调用服务器端集线器的Send方法
+                chat.server.SendAll($('#message').val(), $("#userslist").val());
+                //清空输入框信息并获取焦点
+                $("#message").val('').focus();
+            });
+        });
+        $("#stopsignalr").click(function () {
+            $.connection.hub.stop(hubid);
+        });
+        $("#startsignalr").click(function () {
+            $.connection.hub.start();
+        });
+    });
+</script>
